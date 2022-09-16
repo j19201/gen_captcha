@@ -13,6 +13,7 @@ class gen_captcha{
         $alphabets = range("A","Z");
         $answer_array = str_split($answer);
         $answer_length = count($answer_array)-1;
+        $blank_count_array = [4, 4, 3, 3, 4, 3, 4, 3, 1, 2, 2, 2, 4, 3, 4, 3, 4, 4, 4, 2, 3, 2, 4, 2, 1, 3];//欠損部形状数の最大値をあらかじめ設定しておく
 
         $width = 48*$answer_length+40;
         //欠損画像用の空画像を生成
@@ -40,7 +41,6 @@ class gen_captcha{
         $cover_color = imagecolorallocatealpha($cover,125,125,125,0);
 
         foreach($answer_array as $index => $ans){
-            //echo $index.":".$ans."->".array_search($ans,$alphabets)."<br>";
             //アルファベットを貼り付け
             imagecopy(
                 $result,//dst_image
@@ -52,8 +52,9 @@ class gen_captcha{
                 40,//src_width
                 40//src_height
             );
+            $blank_count = mt_rand(1,$blank_count_array[array_search($ans,$alphabets)]);
             //一部を欠損させる
-            for($i=0;$i<2;$i++){
+            for($i=0;$i<$blank_count;$i++){
                 //黒色が出るまでランダムに座標を取得
                 $x = null;
                 $y = null;
@@ -96,6 +97,74 @@ class gen_captcha{
 
             }
         }
+        //ランダムな幅にリサイズする
+        $str_widths = [];
+        $spaces = [];
+        $width = 0;
+        //欠損画像の文字幅をランダムに決定する
+        for($i=0;$i<$answer_length+1;$i++){
+            $tmp = mt_rand(20,80);
+            $str_widths[] = $tmp;
+            $width+=$tmp;
+        }
+        //欠損画像の空白幅をランダムに決定する
+        for($i=0;$i<$answer_length;$i++){
+            $tmp = mt_rand(4,16);
+            $spaces[] = $tmp;
+            $width+=$tmp;
+        }
+        //画像をリサイズ
+        //欠損画像用の空画像を生成
+        $resized_result= imagecreatetruecolor($width,40);
+        //アルファチャンネルを保存するための処理群
+        //ブレンドモードを無効にする
+        imagealphablending($resized_result, false);
+        //完全なアルファチャネル情報を保存するフラグをonにする
+        imagesavealpha($resized_result, true);
+        //背景を塗りつぶす
+        imagefilledrectangle($resized_result,0,0,$width,40,$bg);
+
+        //カバー画像用の空画像を生成
+        $resized_cover= imagecreatetruecolor($width,40);
+        //アルファチャンネルを保存するための処理群
+        //ブレンドモードを無効にする
+        imagealphablending($resized_cover, false);
+        //完全なアルファチャネル情報を保存するフラグをonにする
+        imagesavealpha($resized_cover, true);
+        //背景を塗りつぶす
+        imagefilledrectangle($resized_cover,0,0,$width,40,$bg);
+        //貼り付け
+        $dst_x = 0;
+        foreach($answer_array as $index => $ans){
+            //文字をコピー
+            imagecopyresized(
+                $resized_result,//$dst_image
+                $result,//$src_image
+                $dst_x,//$dst_x
+                0,//$dst_y
+                $index * 48,//$src_x
+                0,//$src_y
+                $str_widths[$index],//$dst_width
+                40,//$dst_height
+                40,//$src_width
+                40//$src_height
+            );
+            //カバー画像をコピー
+            imagecopyresized(
+                $resized_cover,//$dst_image
+                $cover,//$src_image
+                $dst_x,//$dst_x
+                0,//$dst_y
+                $index * 48,//$src_x
+                0,//$src_y
+                $str_widths[$index],//$dst_width
+                40,//$dst_height
+                40,//$src_width
+                40//$src_height
+            );
+            $dst_x = $dst_x + $str_widths[$index] + $spaces[$index];
+        }
+
         //元画像をbase64にする
         ob_start();
         ImagePNG($result);
@@ -110,7 +179,22 @@ class gen_captcha{
         ob_end_clean();
         imagedestroy($cover);
 
-        return $img.",".$cover_img;
+        //縮小された画像をbase64にする
+        ob_start();
+        ImagePNG($resized_result);
+        $resized_result_img = base64_encode(ob_get_contents());
+        ob_end_clean();
+        imagedestroy($resized_result);
+
+        //縮小されたカバー画像をbase64にする
+        ob_start();
+        ImagePNG($resized_cover);
+        $resized_cover_img = base64_encode(ob_get_contents());
+        ob_end_clean();
+        imagedestroy($resized_cover);
+
+
+        return $img.",".$cover_img.",".$resized_result_img.",".$resized_cover_img;
     }
 
     //base64であらかじめエンコードされた画像を返す（元データ：alphabets.png）
@@ -126,4 +210,8 @@ $res = explode(",",gen_captcha::gen_image("ABCDE"));
 <img src="data:image/png;base64,<?php echo $res[0]?>" cmanOMat="move">
 <br>
 <img src="data:image/png;base64,<?php echo $res[1]?>" cmanOMat="move">
+<br>
+<img src="data:image/png;base64,<?php echo $res[2]?>" cmanOMat="move">
+<br>
+<img src="data:image/png;base64,<?php echo $res[3]?>" cmanOMat="move">
 
