@@ -12,10 +12,10 @@ class gen_captcha{
 
         $alphabets = range("A","Z");
         $answer_array = str_split($answer);
-        $answer_length = count($answer_array)-1;
+        $answer_length = count($answer_array);
         $blank_count_array = [4, 4, 3, 3, 4, 3, 4, 3, 1, 2, 2, 2, 4, 3, 4, 3, 4, 4, 4, 2, 3, 2, 4, 2, 1, 3];//欠損部形状数の最大値をあらかじめ設定しておく
 
-        $width = 48*$answer_length+40;
+        $width = 48*($answer_length-1)+40;
         //欠損画像用の空画像を生成
         $result = imagecreatetruecolor($width,40);
         //アルファチャンネルを保存するための処理群
@@ -101,40 +101,85 @@ class gen_captcha{
         $str_widths = [];
         $spaces = [];
         $width = 0;
-        //欠損画像の文字幅をランダムに決定する
-        for($i=0;$i<$answer_length+1;$i++){
-            $tmp = mt_rand(20,80);
+        //文字幅をランダムに決定する
+        for($i=0;$i<$answer_length*6-1;$i++){
+            $tmp = mt_rand(2,12);
             $str_widths[] = $tmp;
             $width+=$tmp;
         }
-        //欠損画像の空白幅をランダムに決定する
-        for($i=0;$i<$answer_length;$i++){
-            $tmp = mt_rand(4,16);
-            $spaces[] = $tmp;
-            $width+=$tmp;
-        }
+
+        //スクレイピングによる被害を軽減するために、画像サイズをランダムに拡張
+        $result_space = array(
+            "x" => mt_rand(10,50),
+            "y" => mt_rand(10,50)
+        );
+        $cover_space = array(
+            "x" => mt_rand(10,50),
+            "y" => mt_rand(10,50)
+        );
+
+        //文字を置く場所もランダムに決定
+        $result_place = array(
+            "x" => mt_rand(0,$result_space["x"]),
+            "y" => mt_rand(0,$result_space["y"])
+        );
+        $cover_place = array(
+            "x" => mt_rand(0,$cover_space["x"]),
+            "y" => mt_rand(0,$cover_space["y"])
+        );
+
         //画像をリサイズ
         //欠損画像用の空画像を生成
-        $resized_result= imagecreatetruecolor($width,40);
+        $resized_result= imagecreatetruecolor($width+$result_space["x"],40+$result_space["y"]);
         //アルファチャンネルを保存するための処理群
         //ブレンドモードを無効にする
         imagealphablending($resized_result, false);
         //完全なアルファチャネル情報を保存するフラグをonにする
         imagesavealpha($resized_result, true);
         //背景を塗りつぶす
-        imagefilledrectangle($resized_result,0,0,$width,40,$bg);
+        imagefilledrectangle($resized_result,0,0,$width+$result_space["x"],40+$result_space["y"],$bg);
 
         //カバー画像用の空画像を生成
-        $resized_cover= imagecreatetruecolor($width,40);
+        $resized_cover= imagecreatetruecolor($width+$cover_space["x"],40+$cover_space["y"]);
         //アルファチャンネルを保存するための処理群
         //ブレンドモードを無効にする
         imagealphablending($resized_cover, false);
         //完全なアルファチャネル情報を保存するフラグをonにする
         imagesavealpha($resized_cover, true);
         //背景を塗りつぶす
-        imagefilledrectangle($resized_cover,0,0,$width,40,$bg);
+        imagefilledrectangle($resized_cover,0,0,$width+$cover_space["x"],40+$cover_space["y"],$bg);
         //貼り付け
         $dst_x = 0;
+        foreach($str_widths as $index => $dot_width){
+            //文字をコピー
+            imagecopyresized(
+                $resized_result,//$dst_image
+                $result,//$src_image
+                $dst_x+$result_place["x"],//$dst_x
+                $result_place["y"],//$dst_y
+                $index * 8,//$src_x
+                0,//$src_y
+                $dot_width,//$dst_width
+                40,//$dst_height
+                8,//$src_width
+                40//$src_height
+            );
+            //カバー画像をコピー
+            imagecopyresized(
+                $resized_cover,//$dst_image
+                $cover,//$src_image
+                $dst_x+$cover_place["x"],//$dst_x
+                $cover_place["y"],//$dst_y
+                $index * 8,//$src_x
+                0,//$src_y
+                $dot_width,//$dst_width
+                40,//$dst_height
+                8,//$src_width
+                40//$src_height
+            );
+            $dst_x = $dst_x + $dot_width;
+        }
+        /*
         foreach($answer_array as $index => $ans){
             //文字をコピー
             imagecopyresized(
@@ -164,6 +209,7 @@ class gen_captcha{
             );
             $dst_x = $dst_x + $str_widths[$index] + $spaces[$index];
         }
+        */
 
         //元画像をbase64にする
         ob_start();
@@ -207,6 +253,7 @@ class gen_captcha{
         return $img;
     }
 
+    //動作に必要なjavascriptを返す
     public static function return_javascript(){
         $script = "if ( window.addEventListener ){window.addEventListener('load', cmanOM_JS_init, false);} else if( window.attachEvent ) {window.attachEvent( 'onload', cmanOM_JS_init );} var cmanOM_VAR= {}; var cmanOM_Obj= []; var cmanOM_OyaObj= []; function cmanOM_JS_init(){ var wTargetTag= [ 'img', 'div' ]; var wTagList= []; var wObjAt; cmanOM_VAR['moveOn']= false; if ('ontouchstart' in window) { cmanOM_VAR['device']='mobi';}else{ cmanOM_VAR['device']='pc';} for(var i= 0; i < wTargetTag.length; i++){ var wHtmlCollection= document.getElementsByTagName(wTargetTag[i]); for(var j= 0; j < wHtmlCollection.length; j++){ wTagList.push( wHtmlCollection[j] );}} for(var i= 0; i < wTagList.length; i++){ wObjAt= wTagList[i].getAttribute('cmanOMat'); if((wObjAt=== null)||(wObjAt=='')){ }else{ if(wObjAt.toLowerCase().match(/move/)){ cmanOM_Obj.push( wTagList[i] );}} } for(var i= 0; i < cmanOM_Obj.length; i++){ if(cmanOM_Obj[i].style.position.toLowerCase() != 'absolute'){ var wObjStyle= window.getComputedStyle(cmanOM_Obj[i], null); var wOyaDiv= document.createElement('div'); wOyaDiv.setAttribute('id', 'cmanOM_ID_DMY'+i); wOyaDiv.style.position= 'relative'; wOyaDiv.style.width= cmanOM_Obj[i].offsetWidth + 'px'; wOyaDiv.style.height= cmanOM_Obj[i].offsetHeight + 'px'; wOyaDiv.style.marginTop= wObjStyle.marginTop
             wOyaDiv.style.marginRight= wObjStyle.marginRight
