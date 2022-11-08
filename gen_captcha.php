@@ -96,6 +96,60 @@ class gen_captcha{
                 );
 
             }
+            //反転ノイズを追加する（一文字につき一つ＆文字と文字の間も含む）
+            //文字を対象とするか、空白を対象とするかを決定（0=文字,1=空白）
+            $str_or_space = mt_rand(0,1);
+            //最後の文字かどうか
+            if($index == $answer_length-1){  
+                //最後の文字の場合は強制的に文字を対象とする
+                $str_or_space = 0;
+            }
+            echo $str_or_space."<br>";
+            $noise_x = null;
+            $noise_y = null;
+            //対象が文字ならば
+            if($str_or_space == 0){
+                //元イメージで白の領域を選択するまでランダム
+                while(True){
+                    //位置をランダムに決定（ドット毎）
+                    $noise_x = mt_rand(0,4);
+                    $noise_y = mt_rand(0,4);
+                    $rgb = imagecolorat($alphabets_img, 
+                        (array_search($ans,$alphabets)*40) + ($noise_x*8), 
+                        $noise_y*8);
+                    $colors = imagecolorsforindex($alphabets_img, $rgb);
+                    //$colors["alpha"]が127の時は白
+                    if($colors["alpha"] == 127){
+                        break;
+                    }
+                }
+            //空白ならば
+            }else{
+                $noise_x = 5;
+                $noise_y = mt_rand(0,4);
+            }
+            $noise_ox = ($index * 48) + ($noise_x * 8);
+            $noise_oy = $noise_y * 8;
+            //塗りつぶし用の色を用意する
+            $noise_color = imagecolorallocatealpha($result,0,0,0,0);
+            //実際に塗りつぶす
+            imagefilledrectangle(
+                $result,
+                $noise_ox,
+                $noise_oy,
+                $noise_ox+8,
+                $noise_oy+8,
+                $noise_color
+            );
+            //カバー画像に透明になった場所を塗りつぶす
+            imagefilledrectangle(
+                $cover,
+                $noise_ox,
+                $noise_oy,
+                $noise_ox+8,
+                $noise_oy+8,
+                $cover_color
+            );
         }
         //ランダムな幅にリサイズする
         $str_widths = [];
