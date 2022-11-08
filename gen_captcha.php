@@ -104,7 +104,6 @@ class gen_captcha{
                 //最後の文字の場合は強制的に文字を対象とする
                 $str_or_space = 0;
             }
-            echo $str_or_space."<br>";
             $noise_x = null;
             $noise_y = null;
             //対象が文字ならば
