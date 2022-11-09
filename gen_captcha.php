@@ -53,48 +53,113 @@ class gen_captcha{
                 40//src_height
             );
             $blank_count = mt_rand(1,$blank_count_array[array_search($ans,$alphabets)]);
+            //echo $ans.":".$blank_count."<br>";
+            //塗りつぶした座標を記録
+            $break_x = [];
+            $break_y = [];
             //一部を欠損させる
             for($i=0;$i<$blank_count;$i++){
+                //echo $ans.":".$i."回目<br>";
                 //黒色が出るまでランダムに座標を取得
                 $x = null;
                 $y = null;
+                $loopd = False;//規定回数ループしたかどうか
+                $max_loop = 50;//ループの最大数を決める
+                $loop_cnt = 0;
                 while(True){
+                    //既定の回数ループした場合は強制終了させる
+                    if($loop_cnt == $max_loop){
+                        $loopd = True;
+                        break;
+                    }
+                    $loop_cnt++;
                     $x = mt_rand($index * 48,$index * 48 + 39);
                     $y = mt_rand(0,39);
                     $rgb = imagecolorat($result, $x, $y);
                     $colors = imagecolorsforindex($result, $rgb);
                     //$colors["alpha"]が0の時は黒
-                    if($colors["alpha"] == 0){
+                    if($colors["alpha"] != 0){
+                        continue;
+                    }
+                    //各文字最初の欠損は座標を検知しない
+                    if(count($break_x) == 0){
+                        $break_x[] = $x;
+                        $break_y[] = $y;
                         break;
                     }
+                    //偏り対策のために6ピクセル以上空いてない座標を検知
+                    $enough_space = True;
+                    foreach($break_x as $index => $val){
+                        if($x >= $break_x[$index] && $y > $break_y[$index]){//左上に比較対象がある場合
+                            //echo "左上<br>";
+                            if(($x-14) > ($break_x[$index]+8) || ($y-14) > ($break_y[$index]+8)){
+                                $enough_space = True;
+                            }else{
+                                $enough_space = False;
+                                break;
+                            }
+                        }elseif($x > $break_x[$index] && $y <= $break_y[$index]){//左下に比較対象がある場合
+                            //echo "左下<br>";
+                            if(($x-14) > ($break_x[$index]+8) || ($y+14) < ($break_y[$index]-8)){
+                                $enough_space = True;
+                            }else{
+                                $enough_space = False;
+                                break;
+                            }
+                        }elseif($x <= $break_x[$index] && $y >= $break_y[$index]){//右上に比較対象がある場合
+                            //echo "右上<br>";
+                            if(($x+14) < ($break_x[$index]-8) || ($y-14) > ($break_y[$index]+8)){
+                                $enough_space = True;
+                            }else{
+                                $enough_space = False;
+                                break;
+                            }
+                        
+                        }else{//右下に比較対象がある場合
+                            //echo "右下<br>";
+                            if(($x+14) < ($break_x[$index]-8) || ($y+14) < ($break_y[$index]-8)){
+                                $enough_space = True;
+                            }else{
+                                $enough_space = False;
+                                break;
+                            }
+                        }
+                    }
+                    if($enough_space){
+                        $break_x[] = $x;
+                        $break_y[] = $y;
+                        break;
+                    }       
                 }
-                //座標を中心に16*16を透明で塗りつぶす
-                $ox = 0;
-                $oy = 0;
-                if($ox-8 < 0){
-                    $ox = $x - 8;
+                //規定回数で終わった座標は塗りつぶさない
+                if(!$loopd){
+                    //座標を中心に16*16を透明で塗りつぶす
+                    $ox = 0;
+                    $oy = 0;
+                    if($x-8 > 0){
+                        $ox = $x - 8;
+                    }
+                    if($y-8 > 0){
+                        $oy = $y - 8;
+                    }
+                    imagefilledrectangle(
+                        $result,
+                        $ox,
+                        $oy,
+                        $ox+16,
+                        $oy+16,
+                        $bg
+                    );
+                    //カバー画像に透明になった場所を塗りつぶす
+                    imagefilledrectangle(
+                        $cover,
+                        $ox,
+                        $oy,
+                        $ox+16,
+                        $oy+16,
+                        $cover_color
+                    );
                 }
-                if($oy-8 < 0){
-                    $oy = $y - 8;
-                }
-                imagefilledrectangle(
-                    $result,
-                    $ox,
-                    $oy,
-                    $ox+16,
-                    $oy+16,
-                    $bg
-                );
-                //カバー画像に透明になった場所を塗りつぶす
-                imagefilledrectangle(
-                    $cover,
-                    $ox,
-                    $oy,
-                    $ox+16,
-                    $oy+16,
-                    $cover_color
-                );
-
             }
             //反転ノイズを追加する（一文字につき一つ＆文字と文字の間も含む）
             //文字を対象とするか、空白を対象とするかを決定（0=文字,1=空白）
@@ -156,7 +221,7 @@ class gen_captcha{
         $width = 0;
         //文字幅をランダムに決定する
         for($i=0;$i<$answer_length*6-1;$i++){
-            $tmp = mt_rand(2,12);
+            $tmp = mt_rand(4,12);
             $str_widths[] = $tmp;
             $width+=$tmp;
         }
@@ -232,38 +297,7 @@ class gen_captcha{
             );
             $dst_x = $dst_x + $dot_width;
         }
-        /*
-        foreach($answer_array as $index => $ans){
-            //文字をコピー
-            imagecopyresized(
-                $resized_result,//$dst_image
-                $result,//$src_image
-                $dst_x,//$dst_x
-                0,//$dst_y
-                $index * 48,//$src_x
-                0,//$src_y
-                $str_widths[$index],//$dst_width
-                40,//$dst_height
-                40,//$src_width
-                40//$src_height
-            );
-            //カバー画像をコピー
-            imagecopyresized(
-                $resized_cover,//$dst_image
-                $cover,//$src_image
-                $dst_x,//$dst_x
-                0,//$dst_y
-                $index * 48,//$src_x
-                0,//$src_y
-                $str_widths[$index],//$dst_width
-                40,//$dst_height
-                40,//$src_width
-                40//$src_height
-            );
-            $dst_x = $dst_x + $str_widths[$index] + $spaces[$index];
-        }
-        */
-
+        
         //元画像をbase64にする
         ob_start();
         ImagePNG($result);
