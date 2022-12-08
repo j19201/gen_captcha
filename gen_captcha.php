@@ -1,6 +1,6 @@
 <?php
 class gen_captcha{
-    public static function gen_image($answer){
+    public static function gen_image($answer,$config){
         //ファイルから直接アルファベット画像を読み込めないのでbase64から変換する
         $alphabets_img = base64_decode(self::gen_alphabets_img());
         $alphabets_img = imagecreatefromstring($alphabets_img);
@@ -52,179 +52,194 @@ class gen_captcha{
                 40,//src_width
                 40//src_height
             );
-            $blank_count = mt_rand(1,$blank_count_array[array_search($ans,$alphabets)]);
-            //echo $ans.":".$blank_count."<br>";
-            //塗りつぶした座標を記録
-            $break_x = [];
-            $break_y = [];
-            //一部を欠損させる
-            for($i=0;$i<$blank_count;$i++){
-                //echo $ans.":".$i."回目<br>";
-                //黒色が出るまでランダムに座標を取得
-                $x = null;
-                $y = null;
-                $loopd = False;//規定回数ループしたかどうか
-                $max_loop = 50;//ループの最大数を決める
-                $loop_cnt = 0;
-                while(True){
-                    //既定の回数ループした場合は強制終了させる
-                    if($loop_cnt == $max_loop){
-                        $loopd = True;
-                        break;
-                    }
-                    $loop_cnt++;
-                    $x = mt_rand($index * 48,$index * 48 + 39);
-                    $y = mt_rand(0,39);
-                    $rgb = imagecolorat($result, $x, $y);
-                    $colors = imagecolorsforindex($result, $rgb);
-                    //$colors["alpha"]が0の時は黒
-                    if($colors["alpha"] != 0){
-                        continue;
-                    }
-                    //各文字最初の欠損は座標を検知しない
-                    if(count($break_x) == 0){
-                        $break_x[] = $x;
-                        $break_y[] = $y;
-                        break;
-                    }
-                    //偏り対策のために6ピクセル以上空いてない座標を検知
-                    $enough_space = True;
-                    foreach($break_x as $index => $val){
-                        if($x >= $break_x[$index] && $y > $break_y[$index]){//左上に比較対象がある場合
-                            //echo "左上<br>";
-                            if(($x-14) > ($break_x[$index]+8) || ($y-14) > ($break_y[$index]+8)){
-                                $enough_space = True;
-                            }else{
-                                $enough_space = False;
-                                break;
-                            }
-                        }elseif($x > $break_x[$index] && $y <= $break_y[$index]){//左下に比較対象がある場合
-                            //echo "左下<br>";
-                            if(($x-14) > ($break_x[$index]+8) || ($y+14) < ($break_y[$index]-8)){
-                                $enough_space = True;
-                            }else{
-                                $enough_space = False;
-                                break;
-                            }
-                        }elseif($x <= $break_x[$index] && $y >= $break_y[$index]){//右上に比較対象がある場合
-                            //echo "右上<br>";
-                            if(($x+14) < ($break_x[$index]-8) || ($y-14) > ($break_y[$index]+8)){
-                                $enough_space = True;
-                            }else{
-                                $enough_space = False;
-                                break;
-                            }
-                        
-                        }else{//右下に比較対象がある場合
-                            //echo "右下<br>";
-                            if(($x+14) < ($break_x[$index]-8) || ($y+14) < ($break_y[$index]-8)){
-                                $enough_space = True;
-                            }else{
-                                $enough_space = False;
-                                break;
+            if($config->nobreak == 0){//欠損処理をするかどうか
+                $blank_count = mt_rand(1,$blank_count_array[array_search($ans,$alphabets)]);
+                //echo $ans.":".$blank_count."<br>";
+                //塗りつぶした座標を記録
+                $break_x = [];
+                $break_y = [];
+                //一部を欠損させる
+                for($i=0;$i<$blank_count;$i++){
+                    //echo $ans.":".$i."回目<br>";
+                    //黒色が出るまでランダムに座標を取得
+                    $x = null;
+                    $y = null;
+                    $loopd = False;//規定回数ループしたかどうか
+                    $max_loop = 50;//ループの最大数を決める
+                    $loop_cnt = 0;
+                    while(True){
+                        //既定の回数ループした場合は強制終了させる
+                        if($loop_cnt == $max_loop){
+                            $loopd = True;
+                            break;
+                        }
+                        $loop_cnt++;
+                        $x = mt_rand($index * 48,$index * 48 + 39);
+                        $y = mt_rand(0,39);
+                        $rgb = imagecolorat($result, $x, $y);
+                        $colors = imagecolorsforindex($result, $rgb);
+                        //$colors["alpha"]が0の時は黒
+                        if($colors["alpha"] != 0){
+                            continue;
+                        }
+                        //各文字最初の欠損は座標を検知しない
+                        if(count($break_x) == 0){
+                            $break_x[] = $x;
+                            $break_y[] = $y;
+                            break;
+                        }
+                        //偏り対策のために6ピクセル以上空いてない座標を検知
+                        $enough_space = True;
+                        foreach($break_x as $index => $val){
+                            if($x >= $break_x[$index] && $y > $break_y[$index]){//左上に比較対象がある場合
+                                //echo "左上<br>";
+                                if(($x-14) > ($break_x[$index]+8) || ($y-14) > ($break_y[$index]+8)){
+                                    $enough_space = True;
+                                }else{
+                                    $enough_space = False;
+                                    break;
+                                }
+                            }elseif($x > $break_x[$index] && $y <= $break_y[$index]){//左下に比較対象がある場合
+                                //echo "左下<br>";
+                                if(($x-14) > ($break_x[$index]+8) || ($y+14) < ($break_y[$index]-8)){
+                                    $enough_space = True;
+                                }else{
+                                    $enough_space = False;
+                                    break;
+                                }
+                            }elseif($x <= $break_x[$index] && $y >= $break_y[$index]){//右上に比較対象がある場合
+                                //echo "右上<br>";
+                                if(($x+14) < ($break_x[$index]-8) || ($y-14) > ($break_y[$index]+8)){
+                                    $enough_space = True;
+                                }else{
+                                    $enough_space = False;
+                                    break;
+                                }
+                            
+                            }else{//右下に比較対象がある場合
+                                //echo "右下<br>";
+                                if(($x+14) < ($break_x[$index]-8) || ($y+14) < ($break_y[$index]-8)){
+                                    $enough_space = True;
+                                }else{
+                                    $enough_space = False;
+                                    break;
+                                }
                             }
                         }
+                        if($enough_space){
+                            $break_x[] = $x;
+                            $break_y[] = $y;
+                            break;
+                        }       
                     }
-                    if($enough_space){
-                        $break_x[] = $x;
-                        $break_y[] = $y;
-                        break;
-                    }       
-                }
-                //規定回数で終わった座標は塗りつぶさない
-                if(!$loopd){
-                    //座標を中心に16*16を透明で塗りつぶす
-                    $ox = 0;
-                    $oy = 0;
-                    if($x-8 > 0){
-                        $ox = $x - 8;
+                    //規定回数で終わった座標は塗りつぶさない
+                    if(!$loopd){
+                        //座標を中心に16*16を透明で塗りつぶす
+                        $ox = 0;
+                        $oy = 0;
+                        if($x-8 > 0){
+                            $ox = $x - 8;
+                        }
+                        if($y-8 > 0){
+                            $oy = $y - 8;
+                        }
+                        imagefilledrectangle(
+                            $result,
+                            $ox,
+                            $oy,
+                            $ox+16,
+                            $oy+16,
+                            $bg
+                        );
+                        //カバー画像に透明になった場所を塗りつぶす
+                        imagefilledrectangle(
+                            $cover,
+                            $ox,
+                            $oy,
+                            $ox+16,
+                            $oy+16,
+                            $cover_color
+                        );
                     }
-                    if($y-8 > 0){
-                        $oy = $y - 8;
-                    }
-                    imagefilledrectangle(
-                        $result,
-                        $ox,
-                        $oy,
-                        $ox+16,
-                        $oy+16,
-                        $bg
-                    );
-                    //カバー画像に透明になった場所を塗りつぶす
-                    imagefilledrectangle(
-                        $cover,
-                        $ox,
-                        $oy,
-                        $ox+16,
-                        $oy+16,
-                        $cover_color
-                    );
                 }
             }
-            //反転ノイズを追加する（一文字につき一つ＆文字と文字の間も含む）
-            //文字を対象とするか、空白を対象とするかを決定（0=文字,1=空白）
-            $str_or_space = mt_rand(0,1);
-            //最後の文字かどうか
-            if($index == $answer_length-1){  
-                //最後の文字の場合は強制的に文字を対象とする
-                $str_or_space = 0;
-            }
-            $noise_x = null;
-            $noise_y = null;
-            //対象が文字ならば
-            if($str_or_space == 0){
-                //元イメージで白の領域を選択するまでランダム
-                while(True){
-                    //位置をランダムに決定（ドット毎）
-                    $noise_x = mt_rand(0,4);
+            
+            if($config->nonoise == 0){//反転ノイズ重畳を含むかどうか
+                //反転ノイズを追加する（一文字につき一つ＆文字と文字の間も含む）
+                //文字を対象とするか、空白を対象とするかを決定（0=文字,1=空白）
+                $str_or_space = mt_rand(0,1);
+                //最後の文字かどうか
+                if($index == $answer_length-1){  
+                    //最後の文字の場合は強制的に文字を対象とする
+                    $str_or_space = 0;
+                }
+                $noise_x = null;
+                $noise_y = null;
+                //対象が文字ならば
+                if($str_or_space == 0){
+                    //元イメージで白の領域を選択するまでランダム
+                    while(True){
+                        //位置をランダムに決定（ドット毎）
+                        $noise_x = mt_rand(0,4);
+                        $noise_y = mt_rand(0,4);
+                        $rgb = imagecolorat($alphabets_img, 
+                            (array_search($ans,$alphabets)*40) + ($noise_x*8), 
+                            $noise_y*8);
+                        $colors = imagecolorsforindex($alphabets_img, $rgb);
+                        //$colors["alpha"]が127の時は白
+                        if($colors["alpha"] == 127){
+                            break;
+                        }
+                    }
+                //空白ならば
+                }else{
+                    $noise_x = 5;
                     $noise_y = mt_rand(0,4);
-                    $rgb = imagecolorat($alphabets_img, 
-                        (array_search($ans,$alphabets)*40) + ($noise_x*8), 
-                        $noise_y*8);
-                    $colors = imagecolorsforindex($alphabets_img, $rgb);
-                    //$colors["alpha"]が127の時は白
-                    if($colors["alpha"] == 127){
-                        break;
-                    }
                 }
-            //空白ならば
-            }else{
-                $noise_x = 5;
-                $noise_y = mt_rand(0,4);
+                $noise_ox = ($index * 48) + ($noise_x * 8);
+                $noise_oy = $noise_y * 8;
+                //塗りつぶし用の色を用意する
+                $noise_color = imagecolorallocatealpha($result,0,0,0,0);
+                //実際に塗りつぶす
+                imagefilledrectangle(
+                    $result,
+                    $noise_ox,
+                    $noise_oy,
+                    $noise_ox+8,
+                    $noise_oy+8,
+                    $noise_color
+                );
+                //カバー画像に透明になった場所を塗りつぶす
+                imagefilledrectangle(
+                    $cover,
+                    $noise_ox,
+                    $noise_oy,
+                    $noise_ox+8,
+                    $noise_oy+8,
+                    $cover_color
+                );
             }
-            $noise_ox = ($index * 48) + ($noise_x * 8);
-            $noise_oy = $noise_y * 8;
-            //塗りつぶし用の色を用意する
-            $noise_color = imagecolorallocatealpha($result,0,0,0,0);
-            //実際に塗りつぶす
-            imagefilledrectangle(
-                $result,
-                $noise_ox,
-                $noise_oy,
-                $noise_ox+8,
-                $noise_oy+8,
-                $noise_color
-            );
-            //カバー画像に透明になった場所を塗りつぶす
-            imagefilledrectangle(
-                $cover,
-                $noise_ox,
-                $noise_oy,
-                $noise_ox+8,
-                $noise_oy+8,
-                $cover_color
-            );
+
         }
         //ランダムな幅にリサイズする
         $str_widths = [];
         $spaces = [];
         $width = 0;
-        //文字幅をランダムに決定する
-        for($i=0;$i<$answer_length*6-1;$i++){
-            $tmp = mt_rand(4,12);
-            $str_widths[] = $tmp;
-            $width+=$tmp;
+        if($config->norandomspace == 0){//文字幅・間隔不均一化をするかどうか
+            //文字幅をランダムに決定する
+            for($i=0;$i<$answer_length*6-1;$i++){
+                $tmp = mt_rand(4,12);
+                $str_widths[] = $tmp;
+                $width+=$tmp;
+            }
+        }else{
+            for($i=0;$i<$answer_length*6-1;$i++){
+                $tmp = 8;
+                $str_widths[] = $tmp;
+                $width+=$tmp;
+            }
         }
+        
 
         //スクレイピングによる被害を軽減するために、画像サイズをランダムに拡張
         $result_space = array(

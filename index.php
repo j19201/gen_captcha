@@ -1,7 +1,11 @@
 <?php 
 require_once("gen_captcha.php");
 
-$res = gen_captcha::gen_image("ABCDE");
+$config = new stdClass;
+$config->nobreak = "1";
+$config->nonoise = "1";
+$config->norandomspace = "1";
+$res = gen_captcha::gen_image("ABCDE",$config);
 $script = gen_captcha::return_javascript();
 ?>
 <script type="text/javascript"><?php echo $script ?></script>
